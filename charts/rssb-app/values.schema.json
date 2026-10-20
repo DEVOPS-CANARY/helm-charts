@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "chart": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "version": { "type": "string" } }
+    },
+    "partOf": { "type": "string" },
+    "global": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "host": { "type": "string" },
+        "ingressClassName": { "type": "string" },
+        "imagePullSecrets": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "componentDefaults": { "$ref": "#/definitions/settings" },
+    "typeDefaults": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/settings" }
+    },
+    "components": {
+      "type": "object",
+      "propertyNames": {
+        "description": "Becomes a Kubernetes object name: lowercase letters, digits and '-'.",
+        "pattern": "^[a-z]([-a-z0-9]{0,40}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "allOf": [
+          { "$ref": "#/definitions/settings" },
+          { "required": ["type", "image", "port"] }
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string", "pattern": "^/" },
+        "periodSeconds": { "type": "integer", "minimum": 1 },
+        "failureThreshold": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string" },
+        "image": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repository", "digest"],
+          "properties": {
+            "repository": { "type": "string", "minLength": 1 },
+            "digest": {
+              "description": "Images are pinned by digest, never by tag: a tag can be moved, a digest is the exact bytes that were scanned.",
+              "type": "string",
+              "pattern": "^sha256:[a-f0-9]{64}$"
+            }
+          }
+        },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "replicas": { "type": "integer", "minimum": 0 },
+        "autoscaling": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "minReplicas": { "type": "integer", "minimum": 1 },
+            "maxReplicas": { "type": "integer", "minimum": 1 },
+            "targetCPUUtilizationPercentage": { "type": "integer", "minimum": 1, "maximum": 100 }
+          }
+        },
+        "resources": { "type": "object" },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": ["string", "number", "boolean"] }
+        },
+        "secretRefs": { "type": "array", "items": { "type": "string" } },
+        "preStopSleepSeconds": { "type": "integer", "minimum": 0 },
+        "terminationGracePeriodSeconds": { "type": "integer", "minimum": 0 },
+        "writablePaths": { "type": "array", "items": { "type": "string", "pattern": "^/" } },
+        "spreadAcrossNodes": { "type": "boolean" },
+        "probes": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "startup": { "$ref": "#/definitions/probe" },
+            "liveness": { "$ref": "#/definitions/probe" },
+            "readiness": { "$ref": "#/definitions/probe" }
+          }
+        },
+        "ingress": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "path": { "type": "string", "pattern": "^/" },
+            "stripPrefix": { "type": "boolean" },
+            "longLivedConnections": { "type": "boolean" }
+          }
+        },
+        "migration": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "command": { "type": "array", "items": { "type": "string" } },
+            "activeDeadlineSeconds": { "type": "integer", "minimum": 1 },
+            "backoffLimit": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    }
+  }
+}

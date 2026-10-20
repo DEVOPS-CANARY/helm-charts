@@ -1,0 +1,11 @@
+apiVersion: v2
+name: rssb-app
+description: >-
+  Standard deployment for a NestJS/Next.js product: one release per product per
+  environment, with each component (backend, frontend, ...) as an entry under
+  `components`.
+type: application
+# Bump on every change to this chart (CI blocks a PR that changes the chart
+# without bumping it). Environments pin this version in their values file, so a
+# new version reaches UAT first and prod only when its values file is bumped.
+version: 0.1.0
