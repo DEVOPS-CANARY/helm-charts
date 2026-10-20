@@ -1,0 +1,62 @@
+# helm-charts
+
+Platform Helm charts for DEVOPS-CANARY. Apps don't copy Kubernetes YAML: each
+environment fills in a short values file in
+[GitOps-Repo](https://github.com/DEVOPS-CANARY/GitOps-Repo), and Argo CD
+renders it with a **pinned version** of a chart from this repo.
+
+| Chart | For | Published as |
+|---|---|---|
+| [`rssb-app`](charts/rssb-app) | NestJS / Next.js products (backend + frontend + migrations + routing) | `oci://ghcr.io/devops-canary/charts/rssb-app` |
+
+## Who owns what
+
+| Repo | Owner | Contains |
+|---|---|---|
+| App repos | Developers | Code, Dockerfile, a short CI file. **No Kubernetes files.** |
+| **helm-charts** (this repo) | Platform | *How* an app runs: probes, security, rollouts, routing |
+| GitOps-Repo | Platform + CI bot | *What* runs where: values per app per environment, image digests, sealed secrets |
+
+## How `rssb-app` builds a component
+
+A product (e.g. logistics) is **one release per environment**, with each part
+under `components`. Each component's settings are layered, and later wins:
+
+```
+componentDefaults  ->  typeDefaults.<nestjs|nextjs>  ->  components.<name> (the values file)
+```
+
+So a values file only lists what differs. See [`values.yaml`](charts/rssb-app/values.yaml)
+for every option and its default, and GitOps-Repo `apps/logistics/envs/uat/values.yaml`
+for a real example.
+
+**Not configurable, on purpose:** the pod security settings (non-root, read-only
+root filesystem, no privilege escalation, all capabilities dropped). They are
+platform rules, required by the `restricted` Pod Security level on every namespace.
+
+**Guard rails:** `values.schema.json` rejects bad values before anything is rendered:
+
+- image tags instead of `sha256:` digests
+- typos such as `replcas`
+- unknown app types
+- missing ports
+- invalid names
+
+## Changing a chart
+
+1. Edit the chart and **bump `version` in `Chart.yaml`**: patch for fixes, minor for new
+   options, major for breaking changes. CI fails a PR that changes a chart without
+   bumping it.
+2. If you add an option, cover it in `ci/*.yaml`. CI renders every file in `ci/` and
+   validates the output against the Kubernetes API schemas.
+3. Merge. CI publishes the new version to GHCR. Published versions are never
+   overwritten.
+4. Roll it out like an image: bump `chart.version` in UAT's values file first, and in
+   staging/prod only once UAT is happy.
+
+Test locally (use Helm **v4.2.1**, the version Argo CD v3.5.5 renders with):
+
+```sh
+helm lint --strict charts/rssb-app -f charts/rssb-app/ci/overrides-values.yaml
+helm template logistics charts/rssb-app -f ../GitOps-Repo/apps/logistics/envs/uat/values.yaml
+```
