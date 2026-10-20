@@ -1,0 +1,137 @@
+{{- range $name, $comp := .Values.components }}
+{{- $c := include "rssb-app.component" (dict "root" $ "name" $name "comp" $comp) | fromYaml }}
+{{- $labels := dict "root" $ "name" $name "type" $c.type }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "rssb-app.labels" $labels | nindent 4 }}
+spec:
+  {{- if not $c.autoscaling.enabled }}
+  replicas: {{ $c.replicas }}
+  {{- end }}
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0 # never drop below the desired count during a rollout
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        {{- include "rssb-app.labels" $labels | nindent 8 }}
+      {{- if $c.env }}
+      annotations:
+        # Changing a config value changes this hash, which rolls the pods.
+        checksum/config: {{ toJson $c.env | sha256sum }}
+      {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      {{- with $.Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+      securityContext:
+        {{- include "rssb-app.podSecurityContext" $ | nindent 8 }}
+      {{- if $c.spreadAcrossNodes }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: {{ $name }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ $c.terminationGracePeriodSeconds }}
+      containers:
+        - name: {{ $name }}
+          image: {{ include "rssb-app.image" $c }}
+          ports:
+            - name: http
+              containerPort: {{ $c.port }}
+          {{- with include "rssb-app.envFrom" (dict "name" $name "c" $c) }}
+          envFrom:
+            {{- . | nindent 12 }}
+          {{- end }}
+          {{- range $kind := list "startup" "liveness" "readiness" }}
+          {{- $p := get $c.probes $kind }}
+          {{ $kind }}Probe:
+            httpGet:
+              path: {{ $p.path }}
+              port: http
+            periodSeconds: {{ $p.periodSeconds }}
+            failureThreshold: {{ $p.failureThreshold }}
+          {{- end }}
+          lifecycle:
+            preStop:
+              sleep:
+                seconds: {{ $c.preStopSleepSeconds }}
+          resources:
+            {{- toYaml $c.resources | nindent 12 }}
+          securityContext:
+            {{- include "rssb-app.containerSecurityContext" $ | nindent 12 }}
+          {{- with include "rssb-app.writableMounts" $c }}
+          volumeMounts:
+            {{- . | nindent 12 }}
+          {{- end }}
+      {{- with include "rssb-app.writableVolumes" $c }}
+      volumes:
+        {{- . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "rssb-app.labels" $labels | nindent 4 }}
+spec:
+  selector:
+    app: {{ $name }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http # named port: survives container port changes
+{{- if $c.env }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-config
+  labels:
+    {{- include "rssb-app.labels" $labels | nindent 4 }}
+data:
+  {{- range $k, $v := $c.env }}
+  {{ $k }}: {{ $v | toString | quote }}
+  {{- end }}
+{{- end }}
+{{- if $c.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "rssb-app.labels" $labels | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $name }}
+  minReplicas: {{ $c.autoscaling.minReplicas }}
+  maxReplicas: {{ $c.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $c.autoscaling.targetCPUUtilizationPercentage }}
+{{- end }}
+{{- end }}

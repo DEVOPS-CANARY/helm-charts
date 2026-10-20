@@ -1,0 +1,32 @@
+# CI render test: every optional feature on, and explicit false/0 overriding a
+# true/non-zero default (Sprig's merge would silently drop those).
+global:
+  host: test.example.local
+  imagePullSecrets: [registry-pull]
+components:
+  api:
+    type: nestjs
+    image:
+      repository: ghcr.io/example/api
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    port: 3001
+    autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }
+    env: { FEATURE_X: true, TIMEOUT_MS: 1500 }
+    secretRefs: [api-secrets]
+    preStopSleepSeconds: 0
+    ingress: { enabled: true, path: /api/, stripPrefix: true, longLivedConnections: true }
+    migration: { enabled: true, command: [npm, run, migrate] }
+  web:
+    type: nextjs
+    image:
+      repository: ghcr.io/example/web
+      digest: sha256:1111111111111111111111111111111111111111111111111111111111111111
+    port: 3000
+    spreadAcrossNodes: false # type default is true
+  worker:
+    type: nextjs
+    image:
+      repository: ghcr.io/example/worker
+      digest: sha256:2222222222222222222222222222222222222222222222222222222222222222
+    port: 8080
+    ingress: { enabled: false } # type default is true

@@ -1,0 +1,136 @@
+# Test every chart on each PR; publish new chart versions to GHCR on merge.
+#
+# Releasing = bumping `version` in Chart.yaml in a PR. After the merge, any
+# version not yet in the registry is packaged and pushed. Published versions
+# are never overwritten, so environments pinned to a version keep getting
+# exactly what they were tested with.
+name: charts
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: charts-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Same Helm as Argo CD v3.5.5 renders with (hack/tool-versions.sh), so CI
+  # sees exactly what the cluster will get.
+  HELM_VERSION: v4.2.1
+  KUBECONFORM_VERSION: v0.8.0
+  REGISTRY: oci://ghcr.io/devops-canary/charts
+
+jobs:
+  test:
+    name: Lint, render, validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the version check compares against the base branch
+          persist-credentials: false
+
+      - name: Install Helm and kubeconform (checksums verified)
+        run: |
+          set -euo pipefail
+          cd "$(mktemp -d)"
+          curl -fsSLO "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+          curl -fsSLO "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz.sha256sum"
+          sha256sum -c "helm-${HELM_VERSION}-linux-amd64.tar.gz.sha256sum"
+          tar -xzf "helm-${HELM_VERSION}-linux-amd64.tar.gz"
+          sudo install -m 0755 linux-amd64/helm /usr/local/bin/helm
+          base="https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}"
+          curl -fsSLO "$base/kubeconform-linux-amd64.tar.gz"
+          curl -fsSLO "$base/CHECKSUMS"
+          sha256sum -c --ignore-missing CHECKSUMS
+          tar -xzf kubeconform-linux-amd64.tar.gz kubeconform
+          sudo install -m 0755 kubeconform /usr/local/bin/kubeconform
+          helm version --short && kubeconform -v
+
+      # helm lint checks chart structure and values.schema.json. Each ci/*.yaml
+      # is rendered and validated against the Kubernetes API schemas, so a typo
+      # in a template fails here and not in a cluster.
+      - name: Lint and validate every chart
+        run: |
+          set -euo pipefail
+          for chart in charts/*/; do
+            echo "::group::$chart"
+            helm lint --strict "$chart"
+            for values in "$chart"ci/*.yaml; do
+              [ -e "$values" ] || continue
+              echo "-- $values"
+              helm lint --strict "$chart" -f "$values"
+              helm template ci "$chart" -f "$values" \
+                | kubeconform -strict -summary -ignore-missing-schemas
+            done
+            echo "::endgroup::"
+          done
+
+      # A changed chart must get a new version: published versions are
+      # immutable, so an unbumped change would never be released.
+      - name: Changed charts have a new version
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          fail=0
+          for chart in charts/*/; do
+            git diff --quiet "$BASE" -- "$chart" && continue
+            new=$(helm show chart "$chart" | awk '/^version:/ {print $2}')
+            old=$(git show "$BASE:${chart}Chart.yaml" 2>/dev/null | awk '/^version:/ {print $2}' || true)
+            if [ "$new" = "$old" ]; then
+              echo "::error file=${chart}Chart.yaml::$chart changed but version is still $new; bump it"
+              fail=1
+            else
+              echo "$chart: ${old:-new chart} -> $new"
+            fi
+          done
+          exit $fail
+
+  release:
+    name: Publish new versions
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # push charts to GHCR
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Helm (checksum verified)
+        run: |
+          set -euo pipefail
+          cd "$(mktemp -d)"
+          curl -fsSLO "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+          curl -fsSLO "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz.sha256sum"
+          sha256sum -c "helm-${HELM_VERSION}-linux-amd64.tar.gz.sha256sum"
+          tar -xzf "helm-${HELM_VERSION}-linux-amd64.tar.gz"
+          sudo install -m 0755 linux-amd64/helm /usr/local/bin/helm
+
+      - name: Push versions that are not in the registry yet
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          echo "$TOKEN" | helm registry login ghcr.io -u "$ACTOR" --password-stdin
+          for chart in charts/*/; do
+            name=$(helm show chart "$chart" | awk '/^name:/ {print $2}')
+            version=$(helm show chart "$chart" | awk '/^version:/ {print $2}')
+            if helm show chart "$REGISTRY/$name" --version "$version" >/dev/null 2>&1; then
+              echo "$name $version already published; skipping"
+              continue
+            fi
+            helm package "$chart" -d dist
+            helm push "dist/$name-$version.tgz" "$REGISTRY"
+            echo "- published \`$REGISTRY/$name:$version\`" >> "$GITHUB_STEP_SUMMARY"
+          done
