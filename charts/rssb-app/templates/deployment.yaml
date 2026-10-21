@@ -124,6 +124,9 @@ metadata:
   name: {{ $name }}-config
   labels:
     {{- include "rssb-app.labels" $labels | nindent 4 }}
+  annotations:
+    # The migration Job (wave -1) reads this too, so it must exist first.
+    argocd.argoproj.io/sync-wave: "-2"
 data:
   {{- range $k, $v := $c.env }}
   {{ $k }}: {{ $v | toString | quote }}

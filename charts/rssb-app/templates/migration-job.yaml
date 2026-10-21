@@ -3,6 +3,7 @@ Database migrations, run by Argo CD on every sync BEFORE the new pods roll out.
 
 Ordering within a sync (lower waves first, each must be healthy before the next):
   wave -2  SealedSecrets (unsealed into Secrets)   - set in the environment folder
+           the component's ConfigMap               - templates/deployment.yaml
   wave -1  this Job (Sync hook: runs to completion)
   wave  0  Deployments, Services, Ingress
 If the migration fails, the sync stops and the old version keeps running.
