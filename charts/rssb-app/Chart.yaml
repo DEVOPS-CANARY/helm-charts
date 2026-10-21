@@ -8,4 +8,4 @@ type: application
 # Bump on every change to this chart (CI blocks a PR that changes the chart
 # without bumping it). Environments pin this version in their values file, so a
 # new version reaches UAT first and prod only when its values file is bumped.
-version: 0.1.0
+version: 0.2.0

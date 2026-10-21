@@ -30,7 +30,7 @@ spec:
   template:
     metadata:
       labels:
-        app: {{ $name }}-migrate
+        {{- include "rssb-app.podLabels" (dict "root" $ "name" (printf "%s-migrate" $name) "type" $c.type) | nindent 8 }}
     spec:
       restartPolicy: Never
       automountServiceAccountToken: false
