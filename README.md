@@ -42,6 +42,18 @@ platform rules, required by the `restricted` Pod Security level on every namespa
 - missing ports
 - invalid names
 
+## Rules that keep the chart small
+
+A shared chart is only worth it while anyone on the team can read it. So:
+
+- **No option until two apps need it.** One app's special case is not a reason to add a
+  setting that every reader of the chart has to understand.
+- **Templates stay plain.** `if`, `range` and the helpers in `_helpers.tpl`; no new
+  template logic when a default in `values.yaml` would do.
+- **Platform rules are not options.** Security contexts and the selector label are fixed.
+- **Owners review every chart PR.** Most of the team only ever edits values files in
+  GitOps-Repo.
+
 ## Changing a chart
 
 1. Edit the chart and **bump `version` in `Chart.yaml`**: patch for fixes, minor for new

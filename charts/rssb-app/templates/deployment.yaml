@@ -23,7 +23,7 @@ spec:
   template:
     metadata:
       labels:
-        {{- include "rssb-app.labels" $labels | nindent 8 }}
+        {{- include "rssb-app.podLabels" $labels | nindent 8 }}
       {{- if $c.env }}
       annotations:
         # Changing a config value changes this hash, which rolls the pods.
@@ -98,6 +98,24 @@ spec:
     - name: http
       port: 80
       targetPort: http # named port: survives container port changes
+{{- $minReplicas := ternary $c.autoscaling.minReplicas $c.replicas $c.autoscaling.enabled }}
+{{- if ge (int $minReplicas) 2 }}
+---
+# Node drains (MicroK8s upgrades, maintenance) evict at most one pod of this
+# component at a time, so it keeps serving. Not rendered for a single replica:
+# there it could only block the drain or protect nothing.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "rssb-app.labels" $labels | nindent 4 }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: {{ $name }}
+{{- end }}
 {{- if $c.env }}
 ---
 apiVersion: v1

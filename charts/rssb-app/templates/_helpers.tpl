@@ -34,14 +34,20 @@ Call with (dict "root" $ "name" $name "comp" $comp); returns YAML.
 {{- end -}}
 
 {{/*
-Labels on every object. The selector stays the short `app: <component>`:
-selectors are immutable, and the Kustomize manifests this chart replaces used it.
+Pod labels. The selector is the short `app: <component>` (selectors are
+immutable, so it never changes). No chart version here: it would change the
+pod template, and every chart release would restart every pod of every app.
 */}}
-{{- define "rssb-app.labels" -}}
+{{- define "rssb-app.podLabels" -}}
 app: {{ .name }}
 app.kubernetes.io/name: {{ .name }}
 app.kubernetes.io/part-of: {{ include "rssb-app.partOf" .root }}
 app.kubernetes.io/component: {{ .type }}
+{{- end -}}
+
+{{/* Labels on every object: the pod labels plus who rendered it, and which chart version. */}}
+{{- define "rssb-app.labels" -}}
+{{ include "rssb-app.podLabels" . }}
 app.kubernetes.io/managed-by: {{ .root.Release.Service }}
 helm.sh/chart: {{ printf "%s-%s" .root.Chart.Name .root.Chart.Version }}
 {{- end -}}

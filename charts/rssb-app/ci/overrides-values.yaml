@@ -22,6 +22,7 @@ components:
       repository: ghcr.io/example/web
       digest: sha256:1111111111111111111111111111111111111111111111111111111111111111
     port: 3000
+    replicas: 2 # gets a PodDisruptionBudget from replicas (api gets one from autoscaling)
     spreadAcrossNodes: false # type default is true
   worker:
     type: nextjs
