@@ -23,6 +23,8 @@ env:
   # sees exactly what the cluster will get.
   HELM_VERSION: v4.2.1
   KUBECONFORM_VERSION: v0.8.0
+  # JSON schemas for CRD kinds (HTTPRoute), pinned to a commit of the catalog.
+  CRD_SCHEMAS: https://raw.githubusercontent.com/datreeio/CRDs-catalog/501527ab9c40c827144c8f45945b25a023e344ce
   REGISTRY: oci://ghcr.io/devops-canary/charts
 
 jobs:
@@ -53,8 +55,9 @@ jobs:
           helm version --short && kubeconform -v
 
       # helm lint checks chart structure and values.schema.json. Each ci/*.yaml
-      # is rendered and validated against the Kubernetes API schemas, so a typo
-      # in a template fails here and not in a cluster.
+      # is rendered and validated against the Kubernetes API schemas (and the
+      # Gateway API ones), so a typo in a template fails here and not in a
+      # cluster. A kind with no schema fails too, rather than being skipped.
       - name: Lint and validate every chart
         run: |
           set -euo pipefail
@@ -66,7 +69,8 @@ jobs:
               echo "-- $values"
               helm lint --strict "$chart" -f "$values"
               helm template ci "$chart" -f "$values" \
-                | kubeconform -strict -summary -ignore-missing-schemas
+                | kubeconform -strict -summary -schema-location default \
+                  -schema-location "$CRD_SCHEMAS/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
             done
             echo "::endgroup::"
           done

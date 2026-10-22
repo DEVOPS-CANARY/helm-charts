@@ -14,7 +14,16 @@
       "additionalProperties": false,
       "properties": {
         "host": { "type": "string" },
-        "ingressClassName": { "type": "string" },
+        "gateway": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "namespace", "listener"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "namespace": { "type": "string", "minLength": 1 },
+            "listener": { "type": "string", "minLength": 1 }
+          }
+        },
         "imagePullSecrets": { "type": "array", "items": { "type": "string" } }
       }
     },

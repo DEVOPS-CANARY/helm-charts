@@ -1,0 +1,51 @@
+{{- /*
+One Gateway API HTTPRoute per exposed component, all on the environment's
+single host: "/" goes to the frontend, "/api/*" to the backend with the prefix
+stripped. The browser only ever talks to that host, which is what lets one
+frontend image serve every environment.
+
+Routes attach to the platform's shared Gateway (global.gateway). The chart names
+no controller, so the platform can change it (Traefik today) without touching
+any app. The longest matching path wins, whatever the order of the routes.
+*/ -}}
+{{- range $name, $comp := .Values.components }}
+{{- $c := include "rssb-app.component" (dict "root" $ "name" $name "comp" $comp) | fromYaml }}
+{{- if $c.ingress.enabled }}
+{{- if not $.Values.global.host }}
+{{- fail (printf "components.%s is exposed (ingress.enabled), so global.host must be set" $name) }}
+{{- end }}
+{{- $path := trimSuffix "/" $c.ingress.path | default "/" }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "rssb-app.labels" (dict "root" $ "name" $name "type" $c.type) | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ $.Values.global.gateway.name }}
+      namespace: {{ $.Values.global.gateway.namespace }}
+      sectionName: {{ $.Values.global.gateway.listener }}
+  hostnames:
+    - {{ $.Values.global.host | quote }}
+  rules:
+    - matches:
+        # Whole path segments: /api matches /api/users but not /apis.
+        - path:
+            type: PathPrefix
+            value: {{ $path }}
+      {{- if and $c.ingress.stripPrefix (ne $path "/") }}
+      filters:
+        # {{ $path }}/users reaches the app as /users
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      {{- end }}
+      backendRefs:
+        - name: {{ $name }}
+          port: 80
+{{- end }}
+{{- end }}
