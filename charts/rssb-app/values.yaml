@@ -14,7 +14,11 @@ partOf: ""
 global:
   # Public host for this environment. "/" and "/api" routes hang off it.
   host: ""
-  ingressClassName: nginx
+  # The platform's shared Gateway API Gateway that the routes attach to.
+  gateway:
+    name: public
+    namespace: gateway
+    listener: web
   # Names of existing docker-registry Secrets (sealed in the environment folder).
   imagePullSecrets: []
 
@@ -39,19 +43,22 @@ componentDefaults:
   # Names of existing Secrets to load as environment variables.
   secretRefs: []
   # Seconds the pod keeps serving after it is removed from the Service, so the
-  # Ingress stops routing to it before SIGTERM arrives.
+  # gateway stops routing to it before SIGTERM arrives.
   preStopSleepSeconds: 5
   terminationGracePeriodSeconds: 30
   # The root filesystem is read-only; these paths get an empty writable volume.
   writablePaths: []
   # Spread replicas across nodes, so losing one node keeps the component up.
   spreadAcrossNodes: false
+  # Expose the component on global.host through the gateway (an HTTPRoute).
   ingress:
     enabled: false
     path: /
     # true: /api/users reaches the app as /users
     stripPrefix: false
-    # true: keep connections open for an hour (WebSockets / Socket.io)
+    # Kept so values files work across chart versions; no effect since 0.3.0.
+    # The gateway keeps WebSockets open by itself (Traefik: tested 150 s+ with
+    # Socket.io), and Gateway API has no per-route setting Traefik supports.
     longLivedConnections: false
   # Database migrations, run by Argo CD before the new pods roll out (see
   # templates/migration-job.yaml).
