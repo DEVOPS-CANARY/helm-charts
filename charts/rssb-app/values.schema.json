@@ -41,7 +41,15 @@
       "additionalProperties": {
         "allOf": [
           { "$ref": "#/definitions/settings" },
-          { "required": ["type", "image", "port"] }
+          {
+            "description": "A worker has no port; it needs a command instead.",
+            "if": { "properties": { "type": { "const": "worker" } }, "required": ["type"] },
+            "then": {
+              "required": ["type", "image", "command"],
+              "properties": { "command": { "minItems": 1 } }
+            },
+            "else": { "required": ["type", "image", "port"] }
+          }
         ]
       }
     }
@@ -61,6 +69,11 @@
       "additionalProperties": false,
       "properties": {
         "type": { "type": "string" },
+        "command": {
+          "description": "Overrides the image's command (e.g. a worker on the backend image).",
+          "type": "array",
+          "items": { "type": "string" }
+        },
         "image": {
           "type": "object",
           "additionalProperties": false,
