@@ -23,8 +23,13 @@ A product (e.g. logistics) is **one release per environment**, with each part
 under `components`. Each component's settings are layered, and later wins:
 
 ```
-componentDefaults  ->  typeDefaults.<nestjs|nextjs>  ->  components.<name> (the values file)
+componentDefaults  ->  typeDefaults.<nestjs|nextjs|worker>  ->  components.<name> (the values file)
 ```
+
+**Types:** `nestjs` and `nextjs` serve HTTP (port, Service, probes, optionally a route).
+`worker` is a background process, e.g. a Kafka consumer: no port, no Service, no route, no
+HTTP probes, and a `command` (usually the backend image with a different entry point, so
+it's built and scanned once). A worker must exit on a fatal error so Kubernetes restarts it.
 
 So a values file only lists what differs. See [`values.yaml`](charts/rssb-app/values.yaml)
 for every option and its default, and GitOps-Repo `apps/logistics/envs/uat/values.yaml`
@@ -39,7 +44,8 @@ platform rules, required by the `restricted` Pod Security level on every namespa
 - image tags instead of `sha256:` digests
 - typos such as `replcas`
 - unknown app types
-- missing ports
+- missing ports (except on a worker, which needs a `command` instead)
+- exposing a component that has no port
 - invalid names
 
 ## Rules that keep the chart small

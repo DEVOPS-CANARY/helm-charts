@@ -11,6 +11,9 @@ any app. The longest matching path wins, whatever the order of the routes.
 {{- range $name, $comp := .Values.components }}
 {{- $c := include "rssb-app.component" (dict "root" $ "name" $name "comp" $comp) | fromYaml }}
 {{- if $c.ingress.enabled }}
+{{- if not $c.port }}
+{{- fail (printf "components.%s has no port (a worker?), so it can't be exposed (ingress.enabled)" $name) }}
+{{- end }}
 {{- if not $.Values.global.host }}
 {{- fail (printf "components.%s is exposed (ingress.enabled), so global.host must be set" $name) }}
 {{- end }}

@@ -52,13 +52,19 @@ spec:
       containers:
         - name: {{ $name }}
           image: {{ include "rssb-app.image" $c }}
+          {{- with $c.command }}
+          command: {{ toJson . }}
+          {{- end }}
+          {{- if $c.port }}
           ports:
             - name: http
               containerPort: {{ $c.port }}
+          {{- end }}
           {{- with include "rssb-app.envFrom" (dict "name" $name "c" $c) }}
           envFrom:
             {{- . | nindent 12 }}
           {{- end }}
+          {{- if $c.port }}
           {{- range $kind := list "startup" "liveness" "readiness" }}
           {{- $p := get $c.probes $kind }}
           {{ $kind }}Probe:
@@ -67,6 +73,7 @@ spec:
               port: http
             periodSeconds: {{ $p.periodSeconds }}
             failureThreshold: {{ $p.failureThreshold }}
+          {{- end }}
           {{- end }}
           lifecycle:
             preStop:
@@ -84,6 +91,7 @@ spec:
       volumes:
         {{- . | nindent 8 }}
       {{- end }}
+{{- if $c.port }}
 ---
 apiVersion: v1
 kind: Service
@@ -98,6 +106,7 @@ spec:
     - name: http
       port: 80
       targetPort: http # named port: survives container port changes
+{{- end }}
 {{- $minReplicas := ternary $c.autoscaling.minReplicas $c.replicas $c.autoscaling.enabled }}
 {{- if ge (int $minReplicas) 2 }}
 ---

@@ -25,6 +25,9 @@ global:
 # Applied to every component.
 componentDefaults:
   replicas: 1
+  # Overrides the image's command, e.g. a worker running the backend image with
+  # a different entry point (built and scanned once, deployed twice).
+  command: []
   # Optional HPA. When enabled, `replicas` is ignored and the HPA owns the count.
   autoscaling:
     enabled: false
@@ -91,6 +94,11 @@ typeDefaults:
     ingress:
       enabled: true
       path: /
+  # A background process (e.g. a Kafka consumer): no port, no Service, no
+  # route, no HTTP probes. Usually the backend image with its own `command`.
+  # If it hits a fatal error it must exit, so Kubernetes restarts it.
+  worker:
+    writablePaths: [/tmp]
 
 # One entry per deployable part of the product, e.g.:
 #

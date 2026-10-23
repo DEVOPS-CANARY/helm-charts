@@ -31,3 +31,11 @@ components:
       digest: sha256:2222222222222222222222222222222222222222222222222222222222222222
     port: 8080
     ingress: { enabled: false } # type default is true
+  notifier:
+    type: worker # no port, no Service, no route, no probes
+    image:
+      repository: ghcr.io/example/api
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    command: [node, dist/worker.js]
+    replicas: 2 # gets a PodDisruptionBudget too
+    secretRefs: [api-secrets]
