@@ -94,9 +94,37 @@
           "additionalProperties": false,
           "properties": {
             "enabled": { "type": "boolean" },
+            "metric": { "enum": ["cpu", "kafka"] },
             "minReplicas": { "type": "integer", "minimum": 1 },
             "maxReplicas": { "type": "integer", "minimum": 1 },
-            "targetCPUUtilizationPercentage": { "type": "integer", "minimum": 1, "maximum": 100 }
+            "targetCPUUtilizationPercentage": { "type": "integer", "minimum": 1, "maximum": 100 },
+            "kafka": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "topic": { "type": "string" },
+                "consumerGroup": { "type": "string" },
+                "lagThreshold": { "type": "integer", "minimum": 1 },
+                "offsetResetPolicy": { "enum": ["latest", "earliest"] }
+              }
+            }
+          },
+          "description": "Scaling on Kafka lag needs the topic and the consumer group to watch.",
+          "if": {
+            "properties": { "enabled": { "const": true }, "metric": { "const": "kafka" } },
+            "required": ["enabled", "metric"]
+          },
+          "then": {
+            "required": ["kafka"],
+            "properties": {
+              "kafka": {
+                "required": ["topic", "consumerGroup"],
+                "properties": {
+                  "topic": { "minLength": 1 },
+                  "consumerGroup": { "minLength": 1 }
+                }
+              }
+            }
           }
         },
         "resources": { "type": "object" },

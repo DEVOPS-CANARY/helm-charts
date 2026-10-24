@@ -141,7 +141,50 @@ data:
   {{ $k }}: {{ $v | toString | quote }}
   {{- end }}
 {{- end }}
-{{- if $c.autoscaling.enabled }}
+{{- if and $c.autoscaling.enabled (eq $c.autoscaling.metric "kafka") }}
+{{- $k := $c.autoscaling.kafka }}
+---
+# KEDA logs in to Kafka the way the consumer does: with the component's own
+# KAFKA_USERNAME and KAFKA_PASSWORD, read from its environment (ConfigMap and
+# Secrets). The credentials are set in one place and never copied.
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: {{ $name }}-kafka
+  labels:
+    {{- include "rssb-app.labels" $labels | nindent 4 }}
+spec:
+  env:
+    - parameter: username
+      name: KAFKA_USERNAME
+    - parameter: password
+      name: KAFKA_PASSWORD
+---
+# KEDA reads the consumer group's lag (messages not yet handled) and drives an
+# HPA it creates, named keda-hpa-{{ $name }}.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "rssb-app.labels" $labels | nindent 4 }}
+spec:
+  scaleTargetRef:
+    name: {{ $name }}
+  minReplicaCount: {{ $c.autoscaling.minReplicas }}
+  maxReplicaCount: {{ $c.autoscaling.maxReplicas }}
+  triggers:
+    - type: kafka
+      authenticationRef:
+        name: {{ $name }}-kafka
+      metadata:
+        bootstrapServersFromEnv: KAFKA_BROKERS
+        topic: {{ $k.topic | quote }}
+        consumerGroup: {{ $k.consumerGroup | quote }}
+        lagThreshold: {{ $k.lagThreshold | quote }}
+        offsetResetPolicy: {{ $k.offsetResetPolicy }}
+        sasl: scram_sha512 # as the apps' Kafka client
+{{- else if $c.autoscaling.enabled }}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

@@ -39,3 +39,17 @@ components:
     command: [node, dist/worker.js]
     replicas: 2 # gets a PodDisruptionBudget too
     secretRefs: [api-secrets]
+  consumer:
+    type: worker
+    image:
+      repository: ghcr.io/example/api
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    command: [node, dist/consumer.js]
+    env: { KAFKA_BROKERS: "kafka.example.local:9092", KAFKA_USERNAME: test }
+    secretRefs: [api-secrets] # holds KAFKA_PASSWORD
+    autoscaling: # KEDA on Kafka lag: a ScaledObject and a TriggerAuthentication
+      enabled: true
+      metric: kafka
+      minReplicas: 1
+      maxReplicas: 6
+      kafka: { topic: test.events, consumerGroup: test.consumer, lagThreshold: 50, offsetResetPolicy: earliest }
