@@ -31,6 +31,14 @@ componentDefaults  ->  typeDefaults.<nestjs|nextjs|worker>  ->  components.<name
 HTTP probes, and a `command` (usually the backend image with a different entry point, so
 it's built and scanned once). A worker must exit on a fatal error so Kubernetes restarts it.
 
+**Autoscaling:** `autoscaling.metric: cpu` gives a plain HorizontalPodAutoscaler on CPU.
+`metric: kafka` scales a Kafka consumer on its **lag** (messages waiting for its consumer
+group) through KEDA, a platform component: the chart renders a `ScaledObject` and a
+`TriggerAuthentication`. KEDA logs in to Kafka with the component's own `KAFKA_BROKERS`,
+`KAFKA_USERNAME` and `KAFKA_PASSWORD`, read from its environment, so credentials are never
+copied. Use it for workers whose CPU stays low while a backlog grows (they wait on email,
+SMS or other services).
+
 So a values file only lists what differs. See [`values.yaml`](charts/rssb-app/values.yaml)
 for every option and its default, and GitOps-Repo `apps/logistics/envs/uat/values.yaml`
 for a real example.
@@ -45,6 +53,7 @@ platform rules, required by the `restricted` Pod Security level on every namespa
 - typos such as `replcas`
 - unknown app types
 - missing ports (except on a worker, which needs a `command` instead)
+- scaling on Kafka without naming the topic and consumer group
 - exposing a component that has no port
 - invalid names
 

@@ -28,12 +28,30 @@ componentDefaults:
   # Overrides the image's command, e.g. a worker running the backend image with
   # a different entry point (built and scanned once, deployed twice).
   command: []
-  # Optional HPA. When enabled, `replicas` is ignored and the HPA owns the count.
+  # Optional autoscaling. When enabled, `replicas` is ignored and the autoscaler
+  # owns the count. `metric` picks what drives it:
+  #   cpu    a HorizontalPodAutoscaler on CPU use
+  #   kafka  KEDA (a platform component), on a Kafka consumer group's lag: the
+  #          messages waiting for it. About lag / lagThreshold pods, and never
+  #          more than the topic has partitions (an extra consumer would idle).
   autoscaling:
     enabled: false
+    metric: cpu
     minReplicas: 2
     maxReplicas: 5
     targetCPUUtilizationPercentage: 70
+    # KEDA connects like the consumer: with the component's own KAFKA_BROKERS,
+    # KAFKA_USERNAME and KAFKA_PASSWORD (SASL SCRAM-SHA-512), read from its
+    # environment. No TLS yet: add a `tls` option when a Kafka with TLS needs it.
+    kafka:
+      topic: ""
+      consumerGroup: ""
+      # Messages waiting per pod before KEDA adds another.
+      lagThreshold: 20
+      # Where a group with no committed offset starts reading. Must match the
+      # consumer (KafkaJS `fromBeginning: true` is earliest), or KEDA misjudges
+      # a new group's lag.
+      offsetResetPolicy: latest
   resources:
     requests:
       cpu: 100m
