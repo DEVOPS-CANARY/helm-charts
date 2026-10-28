@@ -52,7 +52,7 @@ spec:
           envFrom:
             {{- . | nindent 12 }}
           {{- end }}
-          {{- with include "rssb-app.databaseEnv" (dict "root" $ "name" $name "c" $c) }}
+          {{- with printf "%s%s" (include "rssb-app.databaseEnv" (dict "root" $ "name" $name "c" $c)) (include "rssb-app.kafkaEnv" (dict "root" $ "name" $name "c" $c)) }}
           env:
             {{- . | nindent 12 }}
           {{- end }}

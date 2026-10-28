@@ -383,6 +383,63 @@
               "type": "string"
             }
           }
+        },
+        "kafka": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "managed": {
+              "type": "boolean"
+            },
+            "existingSecret": {
+              "type": "string"
+            },
+            "providerConfig": {
+              "type": "string",
+              "minLength": 1
+            },
+            "user": {
+              "type": "string",
+              "pattern": "^([a-z_][a-z0-9_]*)?$"
+            },
+            "topicPrefix": {
+              "type": "string"
+            },
+            "replicationFactor": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "topics": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9._-]+$"
+                  },
+                  "partitions": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "replicationFactor": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "config": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }

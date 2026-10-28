@@ -1,0 +1,86 @@
+{{- /*
+A component's own Kafka user, the ACLs that fence it to this environment's
+prefix, and its topics, declared here and created by Crossplane's
+provider-kafka (golden path layer 6). The provider generates the SCRAM
+password and writes username, password and brokers to Secret
+<component>-kafka in this namespace; the pods read them ("rssb-app.kafkaEnv").
+
+Prefix <env>.<product>. from the namespace (logistics-uat -> uat.logistics.):
+the user may only read, write and describe topics and read consumer groups
+starting with it, as the lab's scripts/lab-services.sh did by hand.
+Wave -3 like the database. Topics are orphaned on deletion (they hold data);
+the user and its ACLs are removed.
+*/ -}}
+{{- range $name, $comp := .Values.components }}
+{{- $c := include "rssb-app.component" (dict "root" $ "name" $name "comp" $comp) | fromYaml }}
+{{- if $c.kafka.managed }}
+{{- $user := $c.kafka.user | default ($.Release.Namespace | replace "-" "_") }}
+{{- $prefix := include "rssb-app.kafkaPrefix" (dict "root" $ "c" $c) }}
+{{- $labels := dict "root" $ "name" (printf "%s-kafka" $name) "type" $c.type }}
+---
+apiVersion: user.kafka.m.crossplane.io/v1alpha1
+kind: User
+metadata:
+  name: {{ $name }}-kafka-user
+  labels:
+    {{- include "rssb-app.labels" $labels | nindent 4 }}
+  annotations:
+    crossplane.io/external-name: {{ $user | quote }}
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  forProvider:
+    mechanisms: [SCRAM-SHA-512]
+  writeConnectionSecretToRef:
+    name: {{ $name }}-kafka
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: {{ $c.kafka.providerConfig }}
+{{- range $acl := list (dict "res" "Topic" "op" "Read") (dict "res" "Topic" "op" "Write") (dict "res" "Topic" "op" "Describe") (dict "res" "Group" "op" "Read") }}
+---
+apiVersion: acl.kafka.m.crossplane.io/v1alpha1
+kind: AccessControlList
+metadata:
+  name: {{ $name }}-kafka-{{ $acl.res | lower }}-{{ $acl.op | lower }}
+  labels:
+    {{- include "rssb-app.labels" $labels | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  forProvider:
+    resourceName: {{ $prefix | quote }}
+    resourceType: {{ $acl.res }}
+    resourcePatternTypeFilter: Prefixed
+    resourcePrincipal: User:{{ $user }}
+    resourceHost: "*"
+    resourceOperation: {{ $acl.op }}
+    resourcePermissionType: Allow
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: {{ $c.kafka.providerConfig }}
+{{- end }}
+{{- range $t := $c.kafka.topics }}
+---
+apiVersion: topic.kafka.m.crossplane.io/v1alpha1
+kind: Topic
+metadata:
+  name: {{ $name }}-topic-{{ $t.name }}
+  labels:
+    {{- include "rssb-app.labels" $labels | nindent 4 }}
+  annotations:
+    crossplane.io/external-name: {{ printf "%s%s" $prefix $t.name | quote }}
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  managementPolicies: ["Observe", "Create", "Update", "LateInitialize"] # never dropped with the object
+  forProvider:
+    partitions: {{ $t.partitions | default 1 }}
+    replicationFactor: {{ $t.replicationFactor | default $c.kafka.replicationFactor }}
+    {{- with $t.config }}
+    config:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: {{ $c.kafka.providerConfig }}
+{{- end }}
+{{- end }}
+{{- end }}

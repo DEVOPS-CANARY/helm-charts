@@ -17,6 +17,7 @@ components:
     ingress: { enabled: true, path: /api/, stripPrefix: true, longLivedConnections: true }
     migration: { enabled: true, command: [npm, run, migrate] }
     database: { managed: true, urlSuffix: "?sslmode=disable" }
+    kafka: { managed: true, topics: [{ name: events, partitions: 3, config: { retention.ms: "604800000" } }] }
   web:
     type: nextjs
     image:
@@ -47,8 +48,7 @@ components:
       repository: ghcr.io/example/api
       digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
     command: [node, dist/consumer.js]
-    env: { KAFKA_BROKERS: "kafka.example.local:9092", KAFKA_USERNAME: test }
-    secretRefs: [api-secrets] # holds KAFKA_PASSWORD
+    kafka: { existingSecret: api-kafka } # the backend user, same variables
     autoscaling: # KEDA on Kafka lag: a ScaledObject and a TriggerAuthentication
       enabled: true
       metric: kafka
