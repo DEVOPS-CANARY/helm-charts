@@ -16,6 +16,7 @@ components:
     preStopSleepSeconds: 0
     ingress: { enabled: true, path: /api/, stripPrefix: true, longLivedConnections: true }
     migration: { enabled: true, command: [npm, run, migrate] }
+    database: { managed: true, urlSuffix: "?sslmode=disable" }
   web:
     type: nextjs
     image:

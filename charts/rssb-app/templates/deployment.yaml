@@ -64,6 +64,10 @@ spec:
           envFrom:
             {{- . | nindent 12 }}
           {{- end }}
+          {{- with include "rssb-app.databaseEnv" (dict "root" $ "name" $name "c" $c) }}
+          env:
+            {{- . | nindent 12 }}
+          {{- end }}
           {{- if $c.port }}
           {{- range $kind := list "startup" "liveness" "readiness" }}
           {{- $p := get $c.probes $kind }}

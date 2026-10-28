@@ -52,6 +52,10 @@ spec:
           envFrom:
             {{- . | nindent 12 }}
           {{- end }}
+          {{- with include "rssb-app.databaseEnv" (dict "root" $ "name" $name "c" $c) }}
+          env:
+            {{- . | nindent 12 }}
+          {{- end }}
           resources:
             requests:
               cpu: 100m
