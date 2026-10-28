@@ -128,3 +128,37 @@ writes, and the URL most Node drivers read, composed from them by Kubernetes
   value: postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_ENDPOINT):$(DB_PORT)/{{ include "rssb-app.databaseName" (dict "root" .root "c" .c) }}{{ .c.database.urlSuffix }}
 {{- end }}
 {{- end -}}
+
+{{/*
+Kafka topic and group prefix for this environment: kafka.topicPrefix, or
+<env>.<product>. from the namespace <product>-<env> (logistics-uat -> uat.logistics.).
+*/}}
+{{- define "rssb-app.kafkaPrefix" -}}
+{{- if .c.kafka.topicPrefix -}}
+{{- .c.kafka.topicPrefix -}}
+{{- else -}}
+{{- $env := .root.Release.Namespace | splitList "-" | last -}}
+{{- $product := .root.Release.Namespace | trimSuffix (printf "-%s" $env) -}}
+{{- printf "%s.%s." $env $product -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Environment for a managed Kafka user (or another component's, through
+existingSecret): username, password and brokers from the Secret provider-kafka
+writes, plus the prefix the app must put in front of its topics and groups.
+*/}}
+{{- define "rssb-app.kafkaEnv" -}}
+{{- if or .c.kafka.managed .c.kafka.existingSecret }}
+{{- $secret := .c.kafka.existingSecret | default (printf "%s-kafka" .name) }}
+{{- range $key := list "username" "password" "brokers" }}
+- name: KAFKA_{{ $key | upper }}
+  valueFrom:
+    secretKeyRef:
+      name: {{ $secret }}
+      key: {{ $key }}
+{{- end }}
+- name: KAFKA_TOPIC_PREFIX
+  value: {{ include "rssb-app.kafkaPrefix" (dict "root" .root "c" .c) | quote }}
+{{- end }}
+{{- end -}}

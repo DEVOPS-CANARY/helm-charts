@@ -70,7 +70,8 @@ jobs:
               helm lint --strict "$chart" -f "$values"
               helm template ci "$chart" -f "$values" \
                 | kubeconform -strict -summary -schema-location default \
-                  -schema-location "$CRD_SCHEMAS/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
+                  -schema-location "$CRD_SCHEMAS/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
+                  -schema-location "schemas/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
             done
             echo "::endgroup::"
           done

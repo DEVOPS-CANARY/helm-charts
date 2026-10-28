@@ -82,6 +82,19 @@ componentDefaults:
     # Orphan: removing the component from Git keeps the database and its data
     # (a DBA drops it on purpose). Delete: dropped with the object.
     deletionPolicy: Orphan
+  # The component's own Kafka user, fenced by ACLs to this environment's
+  # prefix (<env>.<product>.), and its topics, created by the platform's
+  # Crossplane provider-kafka. The generated password reaches the pods as
+  # KAFKA_USERNAME, KAFKA_PASSWORD, KAFKA_BROKERS and KAFKA_TOPIC_PREFIX.
+  kafka:
+    managed: false
+    existingSecret: "" # a worker names the backend's Secret: <component>-kafka
+    providerConfig: lab-kafka
+    user: ""        # default: the namespace with '_' (logistics-uat -> logistics_uat)
+    topicPrefix: "" # default: <env>.<product>. from the namespace
+    replicationFactor: 1 # LAB: a single broker; RSSB's cluster takes 3
+    # Topics to create, named after the prefix: [{name: tracking-events, partitions: 3, config: {retention.ms: "604800000"}}]
+    topics: []
   # Seconds the pod keeps serving after it is removed from the Service, so the
   # gateway stops routing to it before SIGTERM arrives.
   preStopSleepSeconds: 5
