@@ -39,6 +39,7 @@ components:
       digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
     command: [node, dist/worker.js]
     replicas: 2 # gets a PodDisruptionBudget too
+    database: { existingSecret: api-db } # the backend's database, same variables
     secretRefs: [api-secrets]
   consumer:
     type: worker
