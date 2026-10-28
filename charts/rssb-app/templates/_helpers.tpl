@@ -109,17 +109,19 @@ environment, like the namespace.
 {{- end -}}
 
 {{/*
-Environment for a managed database: the four connection details from the
-Secret provider-sql writes, and the URL most Node drivers read, composed from
-them by Kubernetes ($(VAR) expands earlier entries of the same env list).
+Environment for a managed database (or another component's, through
+existingSecret): the four connection details from the Secret provider-sql
+writes, and the URL most Node drivers read, composed from them by Kubernetes
+($(VAR) expands earlier entries of the same env list).
 */}}
 {{- define "rssb-app.databaseEnv" -}}
-{{- if .c.database.managed }}
+{{- if or .c.database.managed .c.database.existingSecret }}
+{{- $secret := .c.database.existingSecret | default (printf "%s-db" .name) }}
 {{- range $key := list "username" "password" "endpoint" "port" }}
 - name: DB_{{ $key | upper }}
   valueFrom:
     secretKeyRef:
-      name: {{ $.name }}-db
+      name: {{ $secret }}
       key: {{ $key }}
 {{- end }}
 - name: {{ .c.database.urlEnv }}

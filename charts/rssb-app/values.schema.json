@@ -378,6 +378,9 @@
                 "Orphan",
                 "Delete"
               ]
+            },
+            "existingSecret": {
+              "type": "string"
             }
           }
         }

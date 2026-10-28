@@ -71,6 +71,10 @@ componentDefaults:
   # (postgresql://user:pass@host:port/name + urlSuffix). Nothing to seal.
   database:
     managed: false
+    # A component sharing another one's database (a worker on the backend's)
+    # names that component's connection Secret here instead: <component>-db.
+    # It gets the same DB_* variables and URL; no second role or database.
+    existingSecret: ""
     name: "" # default: the namespace with '_' (todo-uat -> todo_uat); also the role name
     providerConfig: lab-postgres
     urlEnv: DATABASE_URL
