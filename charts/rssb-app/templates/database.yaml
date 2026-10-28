@@ -1,0 +1,56 @@
+{{- /*
+A component's own PostgreSQL role and database, declared here and created by
+Crossplane's provider-sql on the server the ClusterProviderConfig points at
+(golden path layer 6). The provider generates the role's password and writes
+username, password, endpoint and port to Secret <component>-db in this
+namespace; the pods read them (see "rssb-app.databaseEnv"). Nobody seals a
+DATABASE_URL, and the password never leaves the cluster.
+
+Wave -3: before the sealed secrets and ConfigMaps (-2), the migration Job (-1)
+and the pods (0). Argo CD waits for the Role and Database to report Ready.
+Deleted from Git, the objects are orphaned by default: the database and its
+data stay on the server for a DBA to drop (deletionPolicy).
+*/ -}}
+{{- range $name, $comp := .Values.components }}
+{{- $c := include "rssb-app.component" (dict "root" $ "name" $name "comp" $comp) | fromYaml }}
+{{- if $c.database.managed }}
+{{- $db := include "rssb-app.databaseName" (dict "root" $ "c" $c) }}
+---
+apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
+kind: Role
+metadata:
+  name: {{ $name }}-db-role
+  labels:
+    {{- include "rssb-app.labels" (dict "root" $ "name" (printf "%s-db" $name) "type" $c.type) | nindent 4 }}
+  annotations:
+    crossplane.io/external-name: {{ $db | quote }}
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  deletionPolicy: {{ $c.database.deletionPolicy }}
+  forProvider:
+    privileges:
+      login: true
+  writeConnectionSecretToRef:
+    name: {{ $name }}-db
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: {{ $c.database.providerConfig }}
+---
+apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
+kind: Database
+metadata:
+  name: {{ $name }}-db
+  labels:
+    {{- include "rssb-app.labels" (dict "root" $ "name" (printf "%s-db" $name) "type" $c.type) | nindent 4 }}
+  annotations:
+    crossplane.io/external-name: {{ $db | quote }}
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  deletionPolicy: {{ $c.database.deletionPolicy }}
+  forProvider:
+    owner: {{ $db | quote }} # the role above, so it holds every privilege on it
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: {{ $c.database.providerConfig }}
+{{- end }}
+{{- end }}

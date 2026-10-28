@@ -6,31 +6,61 @@
     "chart": {
       "type": "object",
       "additionalProperties": false,
-      "properties": { "version": { "type": "string" } }
+      "properties": {
+        "version": {
+          "type": "string"
+        }
+      }
     },
-    "partOf": { "type": "string" },
+    "partOf": {
+      "type": "string"
+    },
     "global": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "host": { "type": "string" },
+        "host": {
+          "type": "string"
+        },
         "gateway": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["name", "namespace", "listener"],
+          "required": [
+            "name",
+            "namespace",
+            "listener"
+          ],
           "properties": {
-            "name": { "type": "string", "minLength": 1 },
-            "namespace": { "type": "string", "minLength": 1 },
-            "listener": { "type": "string", "minLength": 1 }
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "namespace": {
+              "type": "string",
+              "minLength": 1
+            },
+            "listener": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         },
-        "imagePullSecrets": { "type": "array", "items": { "type": "string" } }
+        "imagePullSecrets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
-    "componentDefaults": { "$ref": "#/definitions/settings" },
+    "componentDefaults": {
+      "$ref": "#/definitions/settings"
+    },
     "typeDefaults": {
       "type": "object",
-      "additionalProperties": { "$ref": "#/definitions/settings" }
+      "additionalProperties": {
+        "$ref": "#/definitions/settings"
+      }
     },
     "components": {
       "type": "object",
@@ -40,15 +70,40 @@
       },
       "additionalProperties": {
         "allOf": [
-          { "$ref": "#/definitions/settings" },
+          {
+            "$ref": "#/definitions/settings"
+          },
           {
             "description": "A worker has no port; it needs a command instead.",
-            "if": { "properties": { "type": { "const": "worker" } }, "required": ["type"] },
-            "then": {
-              "required": ["type", "image", "command"],
-              "properties": { "command": { "minItems": 1 } }
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "worker"
+                }
+              },
+              "required": [
+                "type"
+              ]
             },
-            "else": { "required": ["type", "image", "port"] }
+            "then": {
+              "required": [
+                "type",
+                "image",
+                "command"
+              ],
+              "properties": {
+                "command": {
+                  "minItems": 1
+                }
+              }
+            },
+            "else": {
+              "required": [
+                "type",
+                "image",
+                "port"
+              ]
+            }
           }
         ]
       }
@@ -59,27 +114,46 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "path": { "type": "string", "pattern": "^/" },
-        "periodSeconds": { "type": "integer", "minimum": 1 },
-        "failureThreshold": { "type": "integer", "minimum": 1 }
+        "path": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "periodSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "failureThreshold": {
+          "type": "integer",
+          "minimum": 1
+        }
       }
     },
     "settings": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "type": { "type": "string" },
+        "type": {
+          "type": "string"
+        },
         "command": {
           "description": "Overrides the image's command (e.g. a worker on the backend image).",
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         "image": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["repository", "digest"],
+          "required": [
+            "repository",
+            "digest"
+          ],
           "properties": {
-            "repository": { "type": "string", "minLength": 1 },
+            "repository": {
+              "type": "string",
+              "minLength": 1
+            },
             "digest": {
               "description": "Images are pinned by digest, never by tag: a tag can be moved, a digest is the exact bytes that were scanned.",
               "type": "string",
@@ -87,83 +161,224 @@
             }
           }
         },
-        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
-        "replicas": { "type": "integer", "minimum": 0 },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "replicas": {
+          "type": "integer",
+          "minimum": 0
+        },
         "autoscaling": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "enabled": { "type": "boolean" },
-            "metric": { "enum": ["cpu", "kafka"] },
-            "minReplicas": { "type": "integer", "minimum": 1 },
-            "maxReplicas": { "type": "integer", "minimum": 1 },
-            "targetCPUUtilizationPercentage": { "type": "integer", "minimum": 1, "maximum": 100 },
+            "enabled": {
+              "type": "boolean"
+            },
+            "metric": {
+              "enum": [
+                "cpu",
+                "kafka"
+              ]
+            },
+            "minReplicas": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maxReplicas": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "targetCPUUtilizationPercentage": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
             "kafka": {
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "topic": { "type": "string" },
-                "consumerGroup": { "type": "string" },
-                "lagThreshold": { "type": "integer", "minimum": 1 },
-                "offsetResetPolicy": { "enum": ["latest", "earliest"] }
+                "topic": {
+                  "type": "string"
+                },
+                "consumerGroup": {
+                  "type": "string"
+                },
+                "lagThreshold": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "offsetResetPolicy": {
+                  "enum": [
+                    "latest",
+                    "earliest"
+                  ]
+                }
               }
             }
           },
           "description": "Scaling on Kafka lag needs the topic and the consumer group to watch.",
           "if": {
-            "properties": { "enabled": { "const": true }, "metric": { "const": "kafka" } },
-            "required": ["enabled", "metric"]
+            "properties": {
+              "enabled": {
+                "const": true
+              },
+              "metric": {
+                "const": "kafka"
+              }
+            },
+            "required": [
+              "enabled",
+              "metric"
+            ]
           },
           "then": {
-            "required": ["kafka"],
+            "required": [
+              "kafka"
+            ],
             "properties": {
               "kafka": {
-                "required": ["topic", "consumerGroup"],
+                "required": [
+                  "topic",
+                  "consumerGroup"
+                ],
                 "properties": {
-                  "topic": { "minLength": 1 },
-                  "consumerGroup": { "minLength": 1 }
+                  "topic": {
+                    "minLength": 1
+                  },
+                  "consumerGroup": {
+                    "minLength": 1
+                  }
                 }
               }
             }
           }
         },
-        "resources": { "type": "object" },
+        "resources": {
+          "type": "object"
+        },
         "env": {
           "type": "object",
-          "additionalProperties": { "type": ["string", "number", "boolean"] }
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
         },
-        "secretRefs": { "type": "array", "items": { "type": "string" } },
-        "preStopSleepSeconds": { "type": "integer", "minimum": 0 },
-        "terminationGracePeriodSeconds": { "type": "integer", "minimum": 0 },
-        "writablePaths": { "type": "array", "items": { "type": "string", "pattern": "^/" } },
-        "spreadAcrossNodes": { "type": "boolean" },
+        "secretRefs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "preStopSleepSeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "terminationGracePeriodSeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "writablePaths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^/"
+          }
+        },
+        "spreadAcrossNodes": {
+          "type": "boolean"
+        },
         "probes": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "startup": { "$ref": "#/definitions/probe" },
-            "liveness": { "$ref": "#/definitions/probe" },
-            "readiness": { "$ref": "#/definitions/probe" }
+            "startup": {
+              "$ref": "#/definitions/probe"
+            },
+            "liveness": {
+              "$ref": "#/definitions/probe"
+            },
+            "readiness": {
+              "$ref": "#/definitions/probe"
+            }
           }
         },
         "ingress": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "enabled": { "type": "boolean" },
-            "path": { "type": "string", "pattern": "^/" },
-            "stripPrefix": { "type": "boolean" },
-            "longLivedConnections": { "type": "boolean" }
+            "enabled": {
+              "type": "boolean"
+            },
+            "path": {
+              "type": "string",
+              "pattern": "^/"
+            },
+            "stripPrefix": {
+              "type": "boolean"
+            },
+            "longLivedConnections": {
+              "type": "boolean"
+            }
           }
         },
         "migration": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "enabled": { "type": "boolean" },
-            "command": { "type": "array", "items": { "type": "string" } },
-            "activeDeadlineSeconds": { "type": "integer", "minimum": 1 },
-            "backoffLimit": { "type": "integer", "minimum": 0 }
+            "enabled": {
+              "type": "boolean"
+            },
+            "command": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "activeDeadlineSeconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "backoffLimit": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "database": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "managed": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": "string",
+              "pattern": "^([a-z_][a-z0-9_]*)?$"
+            },
+            "providerConfig": {
+              "type": "string",
+              "minLength": 1
+            },
+            "urlEnv": {
+              "type": "string",
+              "pattern": "^[A-Z_][A-Z0-9_]*$"
+            },
+            "urlSuffix": {
+              "type": "string"
+            },
+            "deletionPolicy": {
+              "type": "string",
+              "enum": [
+                "Orphan",
+                "Delete"
+              ]
+            }
           }
         }
       }

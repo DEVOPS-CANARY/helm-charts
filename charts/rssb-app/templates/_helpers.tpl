@@ -98,3 +98,31 @@ capabilities:
   mountPath: {{ $p }}
 {{- end }}
 {{- end -}}
+
+{{/*
+Database name: database.name, or the namespace with '-' as '_' (todo-uat ->
+todo_uat), which is also the role name. One role and database per product per
+environment, like the namespace.
+*/}}
+{{- define "rssb-app.databaseName" -}}
+{{- .c.database.name | default (.root.Release.Namespace | replace "-" "_") -}}
+{{- end -}}
+
+{{/*
+Environment for a managed database: the four connection details from the
+Secret provider-sql writes, and the URL most Node drivers read, composed from
+them by Kubernetes ($(VAR) expands earlier entries of the same env list).
+*/}}
+{{- define "rssb-app.databaseEnv" -}}
+{{- if .c.database.managed }}
+{{- range $key := list "username" "password" "endpoint" "port" }}
+- name: DB_{{ $key | upper }}
+  valueFrom:
+    secretKeyRef:
+      name: {{ $.name }}-db
+      key: {{ $key }}
+{{- end }}
+- name: {{ .c.database.urlEnv }}
+  value: postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_ENDPOINT):$(DB_PORT)/{{ include "rssb-app.databaseName" (dict "root" .root "c" .c) }}{{ .c.database.urlSuffix }}
+{{- end }}
+{{- end -}}
