@@ -9,7 +9,7 @@ DATABASE_URL, and the password never leaves the cluster.
 Wave -3: before the sealed secrets and ConfigMaps (-2), the migration Job (-1)
 and the pods (0). Argo CD waits for the Role and Database to report Ready.
 Deleted from Git, the objects are orphaned by default: the database and its
-data stay on the server for a DBA to drop (deletionPolicy).
+data stay on the server for a DBA to drop (database.deletionPolicy).
 */ -}}
 {{- range $name, $comp := .Values.components }}
 {{- $c := include "rssb-app.component" (dict "root" $ "name" $name "comp" $comp) | fromYaml }}
@@ -26,7 +26,9 @@ metadata:
     crossplane.io/external-name: {{ $db | quote }}
     argocd.argoproj.io/sync-wave: "-3"
 spec:
-  deletionPolicy: {{ $c.database.deletionPolicy }}
+  # Crossplane v2 namespaced resources have no deletionPolicy: leaving "Delete"
+  # out of the management policies is what orphans the database on deletion.
+  managementPolicies: {{ eq $c.database.deletionPolicy "Delete" | ternary (list "*") (list "Observe" "Create" "Update" "LateInitialize") | toJson }}
   forProvider:
     privileges:
       login: true
@@ -46,7 +48,7 @@ metadata:
     crossplane.io/external-name: {{ $db | quote }}
     argocd.argoproj.io/sync-wave: "-3"
 spec:
-  deletionPolicy: {{ $c.database.deletionPolicy }}
+  managementPolicies: {{ eq $c.database.deletionPolicy "Delete" | ternary (list "*") (list "Observe" "Create" "Update" "LateInitialize") | toJson }}
   forProvider:
     owner: {{ $db | quote }} # the role above, so it holds every privilege on it
   providerConfigRef:
